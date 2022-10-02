@@ -1,27 +1,30 @@
 import {
-  checkIsSelectingField,
   extractEmoticons,
   extractLinks,
   extractMentions,
+  getTitleFromURL,
 } from './utils.js';
 
 const root = {
-  parsedMessage: async (args, _, info) => {
-    const selections = info.fieldNodes.find(
-      node => node.name.value === 'parsedMessage',
-    ).selectionSet.selections;
+  parsedMessage: {
+    mentions: (_, __, info) => {
+      return extractMentions(info.variableValues.message);
+    },
+    emoticons: (_, __, info) => {
+      return extractEmoticons(info.variableValues.message);
+    },
+    links: (_, __, info) => {
+      const shouldFetchTitles = info.fieldNodes[0].selectionSet.selections.some(
+        selection => selection.name.value === 'title',
+      );
 
-    return {
-      mentions:
-        checkIsSelectingField(selections, 'mentions') &&
-        extractMentions(args.message),
-      emoticons:
-        checkIsSelectingField(selections, 'emoticons') &&
-        extractEmoticons(args.message),
-      links:
-        checkIsSelectingField(selections, 'links') &&
-        (await extractLinks(args.message)),
-    };
+      const links = extractLinks(info.variableValues.message);
+
+      return links.map(async link => ({
+        url: link,
+        title: shouldFetchTitles ? await getTitleFromURL(link) : '',
+      }));
+    },
   },
 };
 
